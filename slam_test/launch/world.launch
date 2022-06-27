@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+<launch>
+
+<!-- warehouse simulation environment -->
+  <env name="GAZEBO_MODEL_PATH" value="${GAZEBO_MODEL_PATH}:$(find slam_test)/models"/>
+  <env name="GAZEBO_RESOURCE_PATH" value="${GAZEBO_RESOURCE_PATH}:$(find slam_test)/models"/>
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find slam_test)/worlds/warehouse.world"/>
+    <arg name="paused" value="false"/>
+    <arg name="gui" value="true"/> 
+  </include>
+
+<!-- add robot  -->  
+  <arg name="x_pos" default="0"/>
+  <arg name="y_pos" default="0"/>
+  <arg name="z_pos" default="0"/>  
+
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find slam_test)/urdf/pioneer3dx.xacro"/>
+  <node pkg="gazebo_ros" type="spawn_model" name="spawn_urdf" args="-urdf -model pioneer3dx -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -param robot_description" />
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" ns="/pioneer3dx" respawn="false" output="screen">
+    <param name="publish_frequency" value="40.0"/>
+  </node>
+
+  
+  <param name="use_sim_time" value="true"/>
+  <node pkg="gmapping" type="slam_gmapping" name="slam_gmapping" output="screen"/>
+  
+  <node pkg="amcl" type="amcl" name="amcl" output="screen">
+        <remap from="scan" to="/scan"/>
+        <param name="odom_frame_id" value="odom"/>
+        <param name="odom_model_type" value="diff-corrected"/>
+        <param name="base_frame_id" value="base_link"/>
+        <param name="update_min_d" value="0.1"/>
+        <param name="update_min_a" value="0.15"/>
+        <param name="initial_pose_x" value="0"/>
+        <param name="initial_pose_y" value="0"/>
+        <param name="initial_pose_a" value="0"/>
+        <param name="initial_cov_xx" value="0.001*0.001"/>
+        <param name="initial_cov_yy" value="0.001*0.001"/>
+        <param name="max_particles" value="500"/>
+        <param name="min_particles" value="100"/>
+        <param name="tf_broadcast " value="false"/>
+        <param name="use_map_topic" value="true"/>
+    </node>
+
+  <node pkg="move_base" type="move_base" name="move_base" respawn="true">
+    <rosparam file="$(find slam_test)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find slam_test)/config/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find slam_test)/config/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find slam_test)/config/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find slam_test)/config/move_base_params.yaml" command="load" />
+
+  </node>
+</launch>
